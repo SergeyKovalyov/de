@@ -41,7 +41,6 @@ sub mark_records {
 
 # here we start
 #
-say "# started";
 my $list = $dbh->selectall_arrayref("select id, domain, phone from advertisers where sent = 0", { Slice => {} });
 if (@$list) {
 	send_mail {
@@ -52,6 +51,5 @@ if (@$list) {
 	};
 	mark_records $list;
 }
-say "# exit";
 exit;
 
