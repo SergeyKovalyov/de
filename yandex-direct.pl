@@ -112,16 +112,9 @@ sub create_tables {
 
 
 sub get_locations {
-	my @locations;
-
-	my $select_res = $dbh->selectall_arrayref("select id, ip_address from locations");
-	foreach my $r (@$select_res) {
-		push @locations, {
-			id => $$r[0],
-			ip_address => $$r[1],
-		};
-	}
-	return \@locations;
+	my $locations = $dbh->selectall_arrayref("select id, ip_address, domain,
+		unix_timestamp(last_used) as last_used from locations", { Slice => {} });
+	return $locations;
 }
 
 
@@ -134,9 +127,9 @@ sub get_keywords {
 			k.id,
 			k.keyword
 		from keywords k
-			left join done d on k.id = d.keyword_id and d.location_id = ?
+			left join done d on k.id = d.keyword_id
 			where d.keyword_id is null
-			limit 10", undef, $$l{id});
+			limit 100");
 	foreach my $r (@$select_res) {
 		push @keywords, {
 			id => $$r[0],
@@ -173,7 +166,7 @@ sub process_page {
 	my ($content_ref, $data) = @_;
 
 	my (@banners) = $$content_ref =~ /bannerData\[\d+\] = {(.+?)}/msg;
-	die "unexpected page format" unless @banners;
+	warn "unexpected page format" unless @banners;
 	foreach my $block (@banners) {
 		my $bn;
 		foreach my $line (split /\n/, $block) {
@@ -196,6 +189,7 @@ sub insert_data {
 
 	my %ids;
 	foreach my $record (@$data) {
+		next unless $$record{domain};
 		my ($id) = $dbh->selectrow_array("select id from advertisers where domain = ?", undef, $$record{domain});
 		unless ($id) {
 			$dbh->do("insert into advertisers ("
@@ -221,11 +215,10 @@ sub process_location {
 	foreach my $k (@$keywords) {
 		my $ek = url_encode $$k{keyword};
 		my ($url, @data);
-		if ($$l{ip_address} eq '62.149.16.37') {
+		unless ($$l{domain}) {
 			$url = 'https://direct.yandex.ru/search?text=';
 		} else {
-			# TODO: proxy support
-			# $url = $$l{ip_address} . /search?text=';
+			$url = 'http://' . $$l{domain} . '/cgi-bin/gate42.pl?text=';
 		}
 		my ($page, $next);
 		do {
@@ -234,7 +227,9 @@ sub process_location {
 			my $content = get_url $url, $$k{keyword}, $ek, $page;
 			++$page unless $page;
 			if ($content =~ /name="captcha_code"/) {
-				die "captcha required";
+				$dbh->do("update locations set last_used = now() where id = ?", undef, $$l{id});
+				say "# ", strftime "%Y-%m-%d %H:%M:%S: captcha required", localtime;
+				return;
 			} elsif ($content =~ />Ничего не найдено</) {
 				say "# nothing found" if $opts{debug};
 				$skip = 1;
@@ -261,13 +256,16 @@ sub process_location {
 # here we start
 #
 dump_data \%opts, 'options' if $opts{debug};
-say "# started: ", strftime "%Y-%m-%d %H:%M:%S", localtime;
+say "# ", strftime "%Y-%m-%d %H:%M:%S: started", localtime;
 create_tables;
 
-my $locations = get_locations;
 while (1) {
-	my $l = $$locations[int rand @$locations];
-	process_location $l;
+	my $locations = get_locations;
+	foreach my $l (@$locations) {
+		next if time - $$l{last_used} < 900;
+		process_location $l;
+	}
+	sleep 10;
 }
 
 say "# exit";
