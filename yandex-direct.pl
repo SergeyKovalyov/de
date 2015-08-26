@@ -78,6 +78,7 @@ sub create_tables {
 		) engine = InnoDB");
 	$dbh->do("create table if not exists advertisers (
 			id int unsigned auto_increment primary key,
+			sent tinyint(1) not null default 0,
 			domain varchar(255), unique(domain),
 			name varchar(255),
 			address varchar(255),
