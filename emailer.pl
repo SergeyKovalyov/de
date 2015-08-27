@@ -15,7 +15,9 @@ $dbh->{RaiseError} = 1;
 sub send_mail {
 	my ($params) = @_;
 	
-	my $msg = join "\n", sort map { join "\t", @$_{qw/domain phone/} } @{$$params{list}};
+	my ($count) = $dbh->selectrow_array("select count(*) from advertisers");
+	my $msg = "$count domains in the main DB\n\n";
+	$msg .= join "\n", sort map { join "\t", @$_{qw/domain phone/} } @{$$params{list}};
 	utf8::decode $msg;
 	my $email = new Email::Stuffer;
 	$email->to($$params{to})
