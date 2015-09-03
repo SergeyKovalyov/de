@@ -120,7 +120,7 @@ sub process_target {
 	my @urls =  grep { not /(gif|png|jpg|ico|css|exe|pdf|doc|xls)(\?|$)/i
 		and not /^tel:/i } $$content_ref =~ / href=(?:"(.*?)"|'(.*?)')/igsm;
 
-	my $limit = 50;
+	my $limit = 1;
 	my %seen = ($$target{domain} => 1);
 	foreach my $url (@urls) {
 		if ($url =~ /^mailto:/i) {
@@ -138,23 +138,23 @@ sub process_target {
 			next;
 		}
 
-		last if $limit < 1;
+		last if $limit > 50;
 		say "# limit: $limit url: $url";
-		--$limit;
+		++$limit;
 
 		my $content_ref = get_url $url;
 		return unless $$content_ref;
 		process_page $content_ref, $data;
 	}
-	my %es;
+	my %emails;
 	foreach (@$data) {
 		s/&#(\d+);/chr $1/eg;
 		s/^[-, .]+//g;
 		s/[-, .]+$//g;
-		$es{$_} = 1;
+		$emails{$_} = 1;
 	}
-	my $emails = join ', ', keys %es;
-	$dbh->do("update advertisers set checked = 1, emails = ? where id = ?", undef, $emails, $$target{id});
+	my $emails_str = join ', ', keys %emails;
+	$dbh->do("update advertisers set checked = 1, emails = ? where id = ?", undef, $emails_str, $$target{id});
 }
 
 
