@@ -17,7 +17,7 @@ sub send_mail {
 	
 	my ($count) = $dbh->selectrow_array("select count(*) from advertisers");
 	my $msg = "$count domains in the main DB\n\n";
-	$msg .= join "\n", sort map { join "\t", @$_{qw/domain phone/} } @{$$params{list}};
+	$msg .= join "\n", sort map { join "\t", @$_{qw/domain phone emails/} } @{$$params{list}};
 	utf8::decode $msg;
 	my $email = new Email::Stuffer;
 	$email->to($$params{to})
@@ -43,7 +43,8 @@ sub mark_records {
 
 # here we start
 #
-my $list = $dbh->selectall_arrayref("select id, domain, phone from advertisers where sent = 0", { Slice => {} });
+my $list = $dbh->selectall_arrayref("select id, domain, phone, emails from advertisers
+		where sent = 0 and checked = 1", { Slice => {} });
 if (@$list) {
 	send_mail {
 		to   => 'tikhonova.e@adpremium-team.ru',
