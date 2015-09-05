@@ -151,7 +151,7 @@ sub get_url {
 		say "# getting $url|$k|page: $page";
 		my $resp = $ua->get($encoded_url);
 		return $resp->decoded_content if $resp->is_success;
-		return if $resp->code == 404 or $resp->code == 403;
+		return if $resp->code == 404 or $resp->code == 403 or $resp->code == 500;
 		die; # FIXME
 		--$tries_left;
 		say "# get_url: resp is NOT success: ", $resp->code;
@@ -225,6 +225,10 @@ sub process_location {
 			$next = 0;
 			my $skip = 0;
 			my $content = get_url $url, $$k{keyword}, $ek, $page;
+			unless ($content) {
+				say "# empty content";
+				return;
+			}
 			++$page unless $page;
 			if ($content =~ /name="captcha_code"/) {
 				$dbh->do("update locations set last_used = now() where id = ?", undef, $$l{id});
