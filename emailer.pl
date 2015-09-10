@@ -3,6 +3,7 @@
 # Author: Sergey Kovalyov (sergey.kovalyov@gmail.com)
 #
 use common::sense;
+use autodie;
 use Email::Stuffer;
 use DBI;
 
@@ -15,17 +16,33 @@ $dbh->{RaiseError} = 1;
 sub send_mail {
 	my ($params) = @_;
 	
+	my $file = 'list.csv';
 	my ($count) = $dbh->selectrow_array("select count(*) from advertisers");
 	my $msg = "$count domains in the main DB\n\n";
-	$msg .= join "\n", sort map { join "\t", @$_{qw/domain phone emails/} } @{$$params{list}};
-	utf8::decode $msg;
+
+	open my $fh, '>', $file;
+	say $fh 'www;phone1;phone2;phone3;email1;email2;email3;email4;email5';
+	foreach my $r (@{ $params->{list} }) {
+		my @emails = split / /, $r->{emails};
+		if (@emails > 5) {
+			splice @emails, 5;
+		} else {
+			push @emails, '' while @emails < 5;
+		}
+		my $line = join ';', @$r{qw/domain phone/}, undef, undef, @emails;
+		say $fh $line;
+	}
+	close $fh;
+
 	my $email = new Email::Stuffer;
 	$email->to($$params{to})
 		->cc($$params{cc})
 		->from($$params{from})
 		->subject('В работу')
-		->text_body($msg, encoding => '8bit', format => undef)
+		->text_body($msg)
+		->attach_file($file)
 		->send_or_die;
+	unlink $file;
 }
 
 
