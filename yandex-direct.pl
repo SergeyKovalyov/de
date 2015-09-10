@@ -146,18 +146,11 @@ sub get_url {
 
 	my $encoded_url = $url . $ek;
 	$encoded_url .= "&page=$page" if $page;
-	my $tries_left = 3;
-	do {
-		say "# getting $url|$k|page: $page";
-		my $resp = $ua->get($encoded_url);
-		return $resp->decoded_content if $resp->is_success;
-		return if $resp->code == 404 or $resp->code == 403 or $resp->code == 500;
-		die; # FIXME
-		--$tries_left;
-		say "# get_url: resp is NOT success: ", $resp->code;
-		sleep 300 if $tries_left;
-	} while ($tries_left);
-	die "was not able to handle some error during download";
+	say "# getting $url|$k|page: $page";
+	my $resp = $ua->get($encoded_url);
+	return $resp->decoded_content if $resp->is_success;
+	return if $resp->code == 404 or $resp->code == 403 or $resp->code == 500;
+	die; # FIXME
 }
 
 
@@ -266,7 +259,7 @@ create_tables;
 while (1) {
 	my $locations = get_locations;
 	foreach my $l (@$locations) {
-		next if time - $$l{last_used} < 900;
+		next if time - $$l{last_used} < 900; # 15 minutes pause
 		process_location $l;
 	}
 	sleep 10;
