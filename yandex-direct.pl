@@ -40,8 +40,7 @@ my $ua = new LWP::UserAgent::Cached(
 		my (undef, $name) = @_;
 		my $content = do { open my $fh, '<', $name; local $/; <$fh> };
 		say "#\tcache file: $name";
-		if ($content =~ /name="captcha_code"/) {
-			unlink $name;
+		if ($content =~ /name="captcha_code"/ or $content =~ /500 / and $content =~ /Client-Warning: Internal response/) {
 			return 1;
 		}
 	},
@@ -150,7 +149,7 @@ sub get_url {
 	my $resp = $ua->get($encoded_url);
 	return $resp->decoded_content if $resp->is_success;
 	return if $resp->code == 404 or $resp->code == 403 or $resp->code == 500;
-	die; # FIXME
+	die "something goes wrong";
 }
 
 
