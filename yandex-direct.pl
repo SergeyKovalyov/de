@@ -149,7 +149,7 @@ sub get_url {
 	my $resp = $ua->get($encoded_url);
 	return $resp->decoded_content if $resp->is_success;
 	return if $resp->code == 404 or $resp->code == 403 or $resp->code == 500;
-	die "something goes wrong";
+	warn "something goes wrong: ", $resp->code;
 }
 
 
