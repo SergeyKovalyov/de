@@ -18,7 +18,15 @@ sub send_mail {
 	
 	my $file = 'list.csv';
 	my ($count) = $dbh->selectrow_array("select count(*) from advertisers");
+	my ($keywords) = $dbh->selectrow_array("select count(*) from done");
+	my $t = $dbh->selectall_arrayref("select * from state order by created_at desc limit 1", { Slice => {} });
+	my $state = $t->[0];
+
 	my $msg = "$count domains in the main DB\n\n";
+	my $d = $count - $state->{domains};
+	my $k = $keywords - $state->{keywords};
+	$msg .= sprintf "$d domains and $k keywords in last day (%.5f)\n", $d / $k;
+	$dbh->do("insert into state (domains, keywords) values ($count, $keywords)");
 
 	open my $fh, '>', $file;
 	say $fh 'www;phone1;phone2;phone3;email1;email2;email3;email4;email5';
